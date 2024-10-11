@@ -122,9 +122,9 @@ spec:
                   fieldPath: status.podIP
             - name: SYNCHRONY_SERVICE_URL
             {{ if .Values.ingress.https }}
-              value: "https://{{ .Values.ingress.host }}/synchrony"
+              value: "https://{{ .Values.ingress.host }}:{{ include "confluence.ingressPort" . }}/synchrony"
             {{ else }}
-              value: "http://{{ .Values.ingress.host }}/synchrony"
+              value: "http://{{ .Values.ingress.host }}:{{ include "confluence.ingressPort" . }}/synchrony"
             {{- end }}
             {{- include "synchrony.databaseEnvVars" . | nindent 12 }}
             {{- include "synchrony.clusteringEnvVars" . | nindent 12 }}
