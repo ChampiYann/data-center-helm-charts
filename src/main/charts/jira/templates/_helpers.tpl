@@ -174,7 +174,7 @@ on Tomcat's logs directory. THis ensures that Tomcat+Jira logs get captured in t
   mountPath: /opt/atlassian/jira/atlassian-jira/WEB-INF/classes/seraph-config.xml
   subPath: seraph-config.xml
 {{- end }}
-{{- if or .Values.jira.additionalCertificates.secretName .Values.jira.additionalCertificates.secretList }}
+{{- if or .Values.jira.additionalCertificates.secretName (or .Values.jira.additionalCertificates.secretList (and .Values.jira.localProxy.enable .Values.ingress.https )) }}
 - name: keystore
   mountPath: /var/ssl
 {{- end }}
@@ -296,7 +296,41 @@ For each additional plugin declared, generate a volume mount that injects that l
       - key: seraph-config.xml
         path: seraph-config.xml
 {{- end }}
-{{- if or .Values.jira.additionalCertificates.secretName .Values.jira.additionalCertificates.secretList }}
+{{- if .Values.jira.localProxy }}
+- name: caddy-data
+  emptyDir:
+    sizeLimit: 1Mi
+- name: caddy-config
+  emptyDir:
+    sizeLimit: 1Mi
+- name: proxy-config
+  configMap:
+    name: {{ include "common.names.fullname" . }}-local-proxy-config
+    items:
+      - key: Caddyfile
+        path: Caddyfile
+{{- if .Values.ingress.https }}
+- name: ca-volume
+  emptyDir:
+    sizeLimit: 1Mi
+- name: cert-volume
+  emptyDir:
+    sizeLimit: 1Mi
+- name: ca-csr
+  configMap:
+    name: ca-csr
+    items:
+      - key: csr.json
+        path: csr.json
+- name: cert-csr
+  configMap:
+    name: cert-csr
+    items:
+      - key: csr.json
+        path: csr.json
+{{- end }}
+{{- end }}
+{{- if or .Values.jira.additionalCertificates.secretName (or .Values.jira.additionalCertificates.secretList (and .Values.jira.localProxy .Values.ingress.https)) }}
 - name: keystore
   emptyDir: {}
 {{- if .Values.jira.additionalCertificates.secretName }}

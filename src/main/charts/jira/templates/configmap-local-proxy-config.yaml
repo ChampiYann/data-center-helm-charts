@@ -1,0 +1,21 @@
+{{- if .Values.jira.localProxy.enable -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.fullname" . }}-local-proxy-config
+  labels:
+    {{- include "common.labels.commonLabels" . | nindent 4 }}
+data:
+  Caddyfile: |
+    {{ .Values.ingress.host }}:{{ include "jira.ingressPort" . }} {
+    {{- if .Values.ingress.https }}
+      tls /cert/cert.pem /cert/cert-key.pem
+    {{- end }}
+
+      reverse_proxy * 127.0.0.1:{{ .Values.jira.ports.http }}
+    }
+
+    {{- with .Values.jira.localProxy.additionalConfig }}
+    {{ . | nindent 4 }}
+    {{- end }}
+{{- end -}}

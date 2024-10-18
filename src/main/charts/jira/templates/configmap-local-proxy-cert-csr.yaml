@@ -1,0 +1,20 @@
+{{- if and .Values.jira.localProxy.enable .Values.ingress.https -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.fullname" . }}-local-proxy-cert-csr
+  labels:
+    {{- include "common.labels.commonLabels" . | nindent 4 }}
+data:
+  csr.json: |
+    {
+      {{- $hosts := append (.Values.jira.localProxy.additionalCertCsrHosts | default list ) .Values.ingress.host }}
+      "hosts": {{ $hosts | toJson }},
+      {{- if .Values.jira.localProxy.additionalCertCsrConfig }}
+      "CN": "Jira local proxy certificate",
+      {{ .Values.jira.localProxy.additionalCertCsrConfig | nindent 6 }}
+      {{- else }}
+      "CN": "Jira local proxy certificate"
+      {{- end }}
+    }
+{{- end -}}

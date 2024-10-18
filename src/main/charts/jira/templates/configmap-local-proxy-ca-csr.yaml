@@ -1,0 +1,18 @@
+{{- if and .Values.jira.localProxy.enable .Values.ingress.https -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.fullname" . }}-local-proxy-ca-csr
+  labels:
+    {{- include "common.labels.commonLabels" . | nindent 4 }}
+data:
+  csr.json: |
+    {
+      {{- if .Values.jira.localProxy.additionalCaCsrConfig }}
+      "CN": "Jira local proxy CA",
+      {{ .Values.jira.localProxy.additionalCaCsrConfig | nindent 6 }}
+      {{- else }}
+      "CN": "Jira local proxy CA"
+      {{- end }}
+    }
+{{- end -}}

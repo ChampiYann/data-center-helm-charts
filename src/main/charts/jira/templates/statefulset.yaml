@@ -43,6 +43,11 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.jira.shutdown.terminationGracePeriodSeconds }}
       hostAliases:
       {{- include "jira.additionalHosts" . | nindent 8 }}
+      {{- if .Values.jira.localProxy.enable }}
+        - ip: "127.0.0.1"
+          hostnames:
+            - {{ .Values.ingress.host | quote }}
+      {{- end }}
       {{- if .Values.openshift.runWithRestrictedSCC }}
       {{- else }}
       {{- if .Values.jira.securityContextEnabled }}
@@ -83,7 +88,32 @@ spec:
           command: ["sh", "-c", {{ include "jira.sharedHome.permissionFix.command" . | quote }}]
         {{- end }}
         {{- include "common.jmx.initContainer" . | nindent 8 }}
-        {{- if or .Values.jira.additionalCertificates.secretName .Values.jira.additionalCertificates.secretList }}
+        {{- if and .Values.jira.localProxy.enable .Values.ingress.https }}
+        - name: generate-cert
+          image: {{ .Values.jira.localProxy.initContainer.image }}
+          command:
+            {{- if .Values.jira.localProxy.initContainer.commandOverride }}
+            {{ .Values.jira.localProxy.initContainer.commandOverride }}
+            {{- else }}
+            - /bin/sh
+            - -c
+            - cfssl gencert -initca /ca-csr/csr.json | cfssljson -bare /ca/ca; cfssl gencert -ca /ca/ca.pem -ca-key /ca/ca-key.pem /cert-csr/csr.json | cfssljson -bare /cert/cert; cat /cert/cert.pem /cert/cert-key.pem > /cert/certnkey.pem; rm /ca/ca-key.pem /ca/ca.csr
+            {{- end }}
+          resources:
+          {{- with .Values.jira.localProxy.initContainer.resources }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /ca-csr
+              name: ca-csr
+            - mountPath: /ca
+              name: ca-volume
+            - mountPath: /cert-csr
+              name: cert-csr
+            - mountPath: /cert
+              name: cert-volume
+        {{- end }}
+        {{- if or .Values.jira.additionalCertificates.secretName (or .Values.jira.additionalCertificates.secretList (and .Values.jira.localProxy.enable .Values.ingress.https)) }}
         - name: import-certs
           image: {{ include "jira.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -102,6 +132,10 @@ spec:
               subPath: {{ . }}
             {{- end }}
           {{- end }}
+          {{- end }}
+          {{- if and .Values.jira.localProxy.enable .Values.ingress.https }}
+            - name: ca-volume
+              mountPath: /tmp/crt
           {{- end }}
           command: ["/bin/bash"]
           args: ["-c", {{ include "jira.addCrtToKeystoreCmd" . }}]
@@ -248,6 +282,34 @@ spec:
               exec:
                 command: ["sh", "-c", {{ .Values.jira.shutdown.command | quote }}]
         {{- include "fluentd.container" . | nindent 8 }}
+        {{- if .Values.jira.localProxy.enable }}
+        - name: local-proxy
+          image: {{ .Values.jira.localProxy.container.image }}
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+          command:
+          {{- with .Values.jira.localProxy.container.commandOverride }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+          {{- with .Values.jira.localProxy.container.resources }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: proxy-config
+              mountPath: /etc/caddy
+            - name: caddy-data
+              mountPath: /data
+            - name: caddy-config
+              mountPath: /config
+          {{- if .Values.ingress.https }}
+            - name: ca-volume
+              mountPath: /ca
+            - name: cert-volume
+              mountPath: /cert
+          {{- end }}
+        {{- end }}
         {{- include "jira.additionalContainers" . | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

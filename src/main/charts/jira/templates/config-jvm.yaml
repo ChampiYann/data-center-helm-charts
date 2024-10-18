@@ -14,7 +14,7 @@ data:
     {{- if .Values.serviceAccount.eksIrsa.roleArn }}
     -Daws.webIdentityTokenFile=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
     {{- end }}
-    {{- if or .Values.jira.additionalCertificates.secretName .Values.jira.additionalCertificates.secretList }}
+    {{- if or .Values.jira.additionalCertificates.secretName (or .Values.jira.additionalCertificates.secretList (and .Values.jira.localProxy.enable .Values.ingress.https )) }}
     -Djavax.net.ssl.trustStore=/var/ssl/cacerts
     {{- end }}
     {{ include "common.jmx.javaagent" . | indent 4 | trim }}

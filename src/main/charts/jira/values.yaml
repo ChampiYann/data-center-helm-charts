@@ -916,6 +916,97 @@ jira:
       #
       resources: {}
 
+  # -- Adds a container (defaults to Caddy server) to the Jira pod and "tricks" Jira into connecting to it when accessing it's base URL.
+  # This can be usefull when Jira cannot access itself or other services through kubernetes' ingress controller.
+  # If https is enbled, will also add init container to create a CA en certificate and add then to Jira en the Caddy server.
+  # This function leverages the import-certs functionality to add the certificates to Jira.
+  #
+  localProxy:
+
+    # -- Enbales the local proxy functionality
+    #
+    enable: false
+
+    initContainer:
+
+      # -- Init container image
+      #
+      image: cfssl/cfssl:v1.6.5
+
+      # -- Override the cfssl command to create a CA and a certificate using that CA
+      #
+      commandOverride:
+
+      # -- Resources requests and limits for the cfssl init container
+      #
+      resources: {}
+
+    container:
+
+      # -- Caddy container image
+      #
+      image: caddy:2.8.4-alpine
+
+      # -- Override the default caddy command
+      #
+      commandOverride:
+
+      # -- Resources requests and limits for the caddy container
+      #
+      resources: {}
+
+    # -- Additional Caddy config that will be added to the Caddyfile
+    #
+    additionalConfig:
+    
+    # -- Additional CA CSR configuration for cfssl initContainer.
+    # The CSR already contains a CN propety, additional properties cn be added here
+    # See also https://github.com/cloudflare/cfssl
+    #
+    additionalCaCsrConfig: #|
+      # "CA": {
+      #   "expiry": "8760h",
+      #   "pathlen": 0
+      # },
+      
+      # "key": {
+      #   "algo": "rsa",
+      #   "size": 4096
+      # },
+      # "names": [
+      #   {
+      #     "C":  "US",
+      #     "L":  "San Francisco",
+      #     "O":  "Internet Widgets, Inc.",
+      #     "OU": "WWW",
+      #     "ST": "California"
+      #   }
+      # ]
+    
+
+    # -- Additional hosts for the certificate CSR
+    #
+    additionalCertCsrHosts: []
+
+    # -- Additional certificate CSR configuration for cfssl initContainer.
+    # The CSR already contains a CN and hosts property, additional properties cn be added here
+    # See also https://github.com/cloudflare/cfssl
+    #
+    additionalCertCsrConfig: #|
+      # "key": {
+      #   "algo": "rsa",
+      #   "size": 4096
+      # },
+      # "names": [
+      #   {
+      #     "C":  "US",
+      #     "L":  "San Francisco",
+      #     "O":  "Internet Widgets, Inc.",
+      #     "OU": "WWW",
+      #     "ST": "California"
+      #   }
+      # ]
+
 # Monitoring
 #
 monitoring:
