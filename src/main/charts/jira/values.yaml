@@ -918,7 +918,7 @@ jira:
 
   # -- Adds a container (defaults to Caddy server) to the Jira pod and "tricks" Jira into connecting to it when accessing it's base URL.
   # This can be usefull when Jira cannot access itself or other services through kubernetes' ingress controller.
-  # If https is enbled, will also add init container to create a CA en certificate and add then to Jira en the Caddy server.
+  # If https is enabled, it will also add init containers to create a CA and certificate and add then to Jira and the Caddy server.
   # This function leverages the import-certs functionality to add the certificates to Jira.
   #
   localProxy:
