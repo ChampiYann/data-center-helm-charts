@@ -298,11 +298,9 @@ For each additional plugin declared, generate a volume mount that injects that l
 {{- end }}
 {{- if .Values.jira.localProxy }}
 - name: caddy-data
-  emptyDir:
-    sizeLimit: 1Mi
+  emptyDir: {}
 - name: caddy-config
-  emptyDir:
-    sizeLimit: 1Mi
+  emptyDir: {}
 - name: proxy-config
   configMap:
     name: {{ include "common.names.fullname" . }}-local-proxy-config
@@ -318,13 +316,13 @@ For each additional plugin declared, generate a volume mount that injects that l
     sizeLimit: 1Mi
 - name: ca-csr
   configMap:
-    name: ca-csr
+    name: {{ include "common.names.fullname" . }}-local-proxy-ca-csr
     items:
       - key: csr.json
         path: csr.json
 - name: cert-csr
   configMap:
-    name: cert-csr
+    name: {{ include "common.names.fullname" . }}-local-proxy-cert-csr
     items:
       - key: csr.json
         path: csr.json
