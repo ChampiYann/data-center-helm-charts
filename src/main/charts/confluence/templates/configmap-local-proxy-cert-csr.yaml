@@ -1,0 +1,20 @@
+{{- if and .Values.confluence.localProxy.enable .Values.ingress.https -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.fullname" . }}-local-proxy-cert-csr
+  labels:
+    {{- include "common.labels.commonLabels" . | nindent 4 }}
+data:
+  csr.json: |
+    {
+      {{- $hosts := append (.Values.confluence.localProxy.additionalCertCsrHosts | default list ) .Values.ingress.host }}
+      "hosts": {{ $hosts | toJson }},
+      {{- if .Values.confluence.localProxy.additionalCertCsrConfig }}
+      "CN": "Confluence local proxy certificate",
+      {{ .Values.confluence.localProxy.additionalCertCsrConfig | nindent 6 }}
+      {{- else }}
+      "CN": "Confluence local proxy certificate"
+      {{- end }}
+    }
+{{- end -}}

@@ -288,7 +288,7 @@ on Tomcat's logs directory. THis ensures that Tomcat+Confluence logs get capture
   mountPath: /opt/atlassian/confluence/confluence/WEB-INF/classes/seraph-config.xml
   subPath: seraph-config.xml
 {{- end }}
-{{- if or .Values.confluence.additionalCertificates.secretName .Values.confluence.additionalCertificates.secretList }}
+{{- if or .Values.confluence.additionalCertificates.secretName (or .Values.confluence.additionalCertificates.secretList (and .Values.confluence.localProxy.enable .Values.ingress.https)) }}
 - name: keystore
   mountPath: /var/ssl
 {{- end }}
@@ -469,7 +469,41 @@ For each additional plugin declared, generate a volume mount that injects that l
       - key: seraph-config.xml
         path: seraph-config.xml
 {{- end }}
-{{- if or .Values.confluence.additionalCertificates.secretName .Values.confluence.additionalCertificates.secretList }}
+{{- if .Values.confluence.localProxy }}
+- name: caddy-data
+  emptyDir:
+    sizeLimit: 1Mi
+- name: caddy-config
+  emptyDir:
+    sizeLimit: 1Mi
+- name: proxy-config
+  configMap:
+    name: {{ include "common.names.fullname" . }}-local-proxy-config
+    items:
+      - key: Caddyfile
+        path: Caddyfile
+{{- if .Values.ingress.https }}
+- name: ca-volume
+  emptyDir:
+    sizeLimit: 1Mi
+- name: cert-volume
+  emptyDir:
+    sizeLimit: 1Mi
+- name: ca-csr
+  configMap:
+    name: {{ include "common.names.fullname" . }}-local-proxy-ca-csr
+    items:
+      - key: csr.json
+        path: csr.json
+- name: cert-csr
+  configMap:
+    name: {{ include "common.names.fullname" . }}-local-proxy-cert-csr
+    items:
+      - key: csr.json
+        path: csr.json
+{{- end }}
+{{- end }}
+{{- if or .Values.confluence.additionalCertificates.secretName (or .Values.confluence.additionalCertificates.secretList (and .Values.confluence.localProxy.enable .Values.ingress.https)) }}
 - name: keystore
   emptyDir: {}
 {{- if .Values.confluence.additionalCertificates.secretName }}

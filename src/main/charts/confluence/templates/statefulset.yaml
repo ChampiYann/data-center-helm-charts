@@ -60,6 +60,11 @@ spec:
       {{- end }}
       hostAliases:
         {{- include "confluence.additionalHosts" . | nindent 8 }}
+        {{- if .Values.confluence.localProxy.enable }}
+          - ip: "127.0.0.1"
+            hostnames:
+              - {{ .Values.ingress.host | quote }}
+        {{- end }}
       initContainers:
         {{- if .Values.opensearch.enabled }}
         - name: opensearch-check
@@ -102,7 +107,32 @@ spec:
           command: ["sh", "-c", {{ include "confluence.sharedHome.permissionFix.command" . | quote }}]
         {{- end }}
         {{- include "common.jmx.initContainer" . | nindent 8 }}
-        {{- if or .Values.confluence.additionalCertificates.secretName .Values.confluence.additionalCertificates.secretList }}
+        {{- if and .Values.confluence.localProxy.enable .Values.ingress.https }}
+        - name: generate-cert
+          image: {{ .Values.confluence.localProxy.initContainer.image }}
+          command:
+            {{- if .Values.confluence.localProxy.initContainer.commandOverride }}
+            {{ .Values.confluence.localProxy.initContainer.commandOverride }}
+            {{- else }}
+            - /bin/sh
+            - -c
+            - cfssl gencert -initca /ca-csr/csr.json | cfssljson -bare /ca/ca; cfssl gencert -ca /ca/ca.pem -ca-key /ca/ca-key.pem /cert-csr/csr.json | cfssljson -bare /cert/cert; cat /cert/cert.pem /cert/cert-key.pem > /cert/certnkey.pem; rm /ca/ca-key.pem /ca/ca.csr
+            {{- end }}
+          resources:
+          {{- with .Values.confluence.localProxy.initContainer.resources }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - mountPath: /ca-csr
+              name: ca-csr
+            - mountPath: /ca
+              name: ca-volume
+            - mountPath: /cert-csr
+              name: cert-csr
+            - mountPath: /cert
+              name: cert-volume
+        {{- end }}
+        {{- if or .Values.confluence.additionalCertificates.secretName (or .Values.confluence.additionalCertificates.secretList (and .Values.confluence.localProxy.enable .Values.ingress.https)) }}
         - name: import-certs
           image: {{ include "confluence.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -121,6 +151,10 @@ spec:
               subPath: {{ . }}
             {{- end }}
           {{- end }}
+          {{- end }}
+          {{- if and .Values.confluence.localProxy.enable .Values.ingress.https }}
+            - name: ca-volume
+              mountPath: /tmp/crt
           {{- end }}
           command: ["/bin/bash"]
           args: ["-c", {{ include "confluence.addCrtToKeystoreCmd" . }}]
@@ -274,6 +308,34 @@ spec:
               exec:
                 command: ["sh", "-c", {{ .Values.confluence.shutdown.command | quote }}]
         {{- include "fluentd.container" . | nindent 8 }}
+        {{- if .Values.confluence.localProxy.enable }}
+        - name: local-proxy
+          image: {{ .Values.confluence.localProxy.container.image }}
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+          {{- with .Values.confluence.localProxy.container.commandOverride }}
+          command:
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+          {{- with .Values.confluence.localProxy.container.resources }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: proxy-config
+              mountPath: /etc/caddy
+            - name: caddy-data
+              mountPath: /data
+            - name: caddy-config
+              mountPath: /config
+          {{- if .Values.ingress.https }}
+            - name: ca-volume
+              mountPath: /ca
+            - name: cert-volume
+              mountPath: /cert
+          {{- end }}
+        {{- end }}
         {{- include "confluence.additionalContainers" . | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

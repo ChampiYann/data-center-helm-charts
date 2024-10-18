@@ -1,0 +1,18 @@
+{{- if and .Values.confluence.localProxy.enable .Values.ingress.https -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "common.names.fullname" . }}-local-proxy-ca-csr
+  labels:
+    {{- include "common.labels.commonLabels" . | nindent 4 }}
+data:
+  csr.json: |
+    {
+      {{- if .Values.confluence.localProxy.additionalCaCsrConfig }}
+      "CN": "Confluence local proxy CA",
+      {{ .Values.confluence.localProxy.additionalCaCsrConfig | nindent 6 }}
+      {{- else }}
+      "CN": "Confluence local proxy CA"
+      {{- end }}
+    }
+{{- end -}}
